@@ -9,7 +9,7 @@ import (
 )
 
 func NewWebhooksServerProcessor(opts ...servers.ProcessorOpt) processor.Processor {
-	return servers.NewWebhooksServerProcessor()
+	return servers.NewWebhooksServerProcessor(opts...)
 }
 
 func NewWebhooksClient(endpoint string, client restclient.RestClient) service.WebHookService {
