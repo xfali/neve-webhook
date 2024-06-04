@@ -90,11 +90,11 @@ func (m *defaultManager) loop() {
 		default:
 			e, err := m.eventSvc.Get(m.ctx)
 			if err != nil {
-				m.logger.Errorln("Get Event failed: ", err)
+				m.logger.Warnln("Get Event failed: ", err)
 			} else {
 				err = m.doNotify(m.ctx, e)
 				if err != nil {
-					m.logger.Errorln("Notify Event failed: ", err)
+					m.logger.Warnln("Notify Event failed: ", err)
 				}
 			}
 		}

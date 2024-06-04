@@ -1,0 +1,19 @@
+neve:
+  web:
+    log:
+      requestHeader: true
+      requestBody: true
+      responseHeader: true
+      responseBody: true
+      level: "warn"
+
+    server:
+      contextPath: ""
+      host: ""
+      port: 8080
+      tls:
+        cert:
+        key:
+      readTimeout: 15
+      writeTimeout: 15
+      idleTimeout: 15

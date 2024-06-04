@@ -77,6 +77,7 @@ func (r *memRecorder) Create(ctx context.Context, data Data) (string, error) {
 		for _, e := range v.TriggerEventTypes {
 			delete(r.eventMap[e], data.Url)
 		}
+		v.Url = data.Url
 		v.Secret = data.Secret
 		v.ContentType = data.ContentType
 		v.TriggerEventTypes = data.TriggerEventTypes
@@ -104,8 +105,15 @@ func (r *memRecorder) Update(ctx context.Context, id string, data Data) error {
 		for _, e := range v.TriggerEventTypes {
 			delete(r.eventMap[e], data.Url)
 		}
-		v.Secret = data.Secret
-		v.ContentType = data.ContentType
+		if data.Url != "" {
+			v.Url = data.Url
+		}
+		if data.Secret != "" {
+			v.Secret = data.Secret
+		}
+		if data.ContentType != "" {
+			v.ContentType = data.ContentType
+		}
 		v.TriggerEventTypes = data.TriggerEventTypes
 	} else {
 		return fmt.Errorf("ID %s not found ", id)

@@ -33,6 +33,11 @@ import (
 	"time"
 )
 
+var (
+	EventTypeHeader      = "X-Neve-WebHook-Event"
+	EventSignatureHeader = "X-Neve-WebHook-Signature"
+)
+
 func defaultTransportDialContext(dialer *net.Dialer) func(context.Context, string, string) (net.Conn, error) {
 	return dialer.DialContext
 }
@@ -104,8 +109,8 @@ func (n *httpNotifier) Send(ctx context.Context, url string, contentType string,
 	}
 
 	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("X-Neve-WebHook-Event", eventType)
-	req.Header.Set("X-Neve-WebHook-Signature", secretSign)
+	req.Header.Set(EventTypeHeader, eventType)
+	req.Header.Set(EventSignatureHeader, secretSign)
 	resp, err := n.client.Do(req)
 	if err != nil {
 		return err
