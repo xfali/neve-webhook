@@ -15,31 +15,21 @@
  * limitations under the License.
  */
 
-package recorder
+package service
 
 import (
 	"context"
+	"github.com/xfali/neve-webhook/recorder"
 )
 
-type Data struct {
-	Url               string   `json:"url" xml:"url" yaml:"url"`
-	ContentType       string   `json:"content_type" xml:"content_type" yaml:"content_type"`
-	Secret            string   `json:"secret" xml:"secret" yaml:"secret"`
-	TriggerEventTypes []string `json:"event_type" xml:"event_type" yaml:"event_type"`
-}
+type WebHookService interface {
+	Create(ctx context.Context, rec recorder.Data) (string, error)
 
-type QueryCondition struct {
-	Id        string
-	EventType string
-	//Url       string
-}
+	Update(ctx context.Context, id string, rec recorder.Data) error
 
-type Recorder interface {
-	Query(ctx context.Context, condition QueryCondition) ([]Data, error)
+	Get(ctx context.Context, cond recorder.QueryCondition) ([]recorder.Data, error)
 
-	Create(ctx context.Context, data Data) (string, error)
-
-	Update(ctx context.Context, id string, data Data) error
+	Detail(ctx context.Context, id string) (recorder.Data, error)
 
 	Delete(ctx context.Context, id string) error
 }

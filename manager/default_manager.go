@@ -19,6 +19,7 @@ package manager
 
 import (
 	"context"
+	"github.com/xfali/neve-webhook/auth"
 	"github.com/xfali/neve-webhook/errors"
 	events2 "github.com/xfali/neve-webhook/events"
 	notifier2 "github.com/xfali/neve-webhook/notifier"
@@ -27,6 +28,8 @@ import (
 )
 
 type Opt func(m *defaultManager)
+
+type SignatureFunc func(secret string) (string, error)
 
 type defaultManager struct {
 	logger xlog.Logger
@@ -37,6 +40,8 @@ type defaultManager struct {
 
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	signFunc SignatureFunc
 }
 
 func NewManager(recorder recorder.Recorder, opts ...Opt) *defaultManager {
@@ -45,11 +50,20 @@ func NewManager(recorder recorder.Recorder, opts ...Opt) *defaultManager {
 		recorder: recorder,
 		eventSvc: events2.NewEventService(-1),
 		notifier: notifier2.NewHttpNotifier(nil),
+		signFunc: defaultSignFunc,
 	}
 	for _, opt := range opts {
 		opt(ret)
 	}
 	return ret
+}
+
+func (m *defaultManager) BeanAfterSet() error {
+	return m.Start()
+}
+
+func (m *defaultManager) BeanDestroy() error {
+	return m.Close()
 }
 
 func (m *defaultManager) Start() error {
@@ -102,9 +116,16 @@ func (m *defaultManager) doNotify(ctx context.Context, event *events2.Event) err
 	var errList errors.ErrorList
 
 	for _, d := range datas {
-		err = m.notifier.Send(ctx, d.Url, d.ContentType, d.Secret, event.Type, event.PayLoad)
+		secret, err := m.signFunc(d.Secret)
 		if err != nil {
 			_ = errList.Add(err)
+			m.logger.Errorln(err)
+			continue
+		}
+		err = m.notifier.Send(ctx, d.Url, d.ContentType, secret, event.Type, event.PayLoad)
+		if err != nil {
+			_ = errList.Add(err)
+			m.logger.Errorln(err)
 		}
 	}
 
@@ -112,6 +133,10 @@ func (m *defaultManager) doNotify(ctx context.Context, event *events2.Event) err
 		return errList
 	}
 	return nil
+}
+
+func defaultSignFunc(secret string) (string, error) {
+	return auth.HmacSignature(auth.DefaultSignatureKey, secret)
 }
 
 type opts struct{}
@@ -127,5 +152,11 @@ func (o opts) SetEventService(s events2.Service) Opt {
 func (o opts) SetNotifier(n notifier2.Notifier) Opt {
 	return func(m *defaultManager) {
 		m.notifier = n
+	}
+}
+
+func (o opts) SetSignatureFunc(f SignatureFunc) Opt {
+	return func(m *defaultManager) {
+		m.signFunc = f
 	}
 }
