@@ -25,6 +25,11 @@ import (
 	notifier2 "github.com/xfali/neve-webhook/notifier"
 	"github.com/xfali/neve-webhook/recorder"
 	"github.com/xfali/xlog"
+	"time"
+)
+
+const (
+	NotifyTimeout = 15 * time.Second
 )
 
 type Opt func(m *defaultManager)
@@ -41,16 +46,18 @@ type defaultManager struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	signFunc SignatureFunc
+	signFunc      SignatureFunc
+	notifyTimeout time.Duration
 }
 
 func NewManager(recorder recorder.Recorder, opts ...Opt) *defaultManager {
 	ret := &defaultManager{
-		logger:   xlog.GetLogger(),
-		recorder: recorder,
-		eventSvc: events2.NewEventService(-1),
-		notifier: notifier2.NewHttpNotifier(nil),
-		signFunc: defaultSignFunc,
+		logger:        xlog.GetLogger(),
+		recorder:      recorder,
+		eventSvc:      events2.NewEventService(-1),
+		notifier:      notifier2.NewHttpNotifier(nil),
+		signFunc:      defaultSignFunc,
+		notifyTimeout: NotifyTimeout,
 	}
 	for _, opt := range opts {
 		opt(ret)
@@ -101,13 +108,13 @@ func (m *defaultManager) loop() {
 	}
 }
 
-func (m *defaultManager) Notify(ctx context.Context, event *events2.Event) error {
+func (m *defaultManager) Notify(ctx context.Context, event events2.IEvent) error {
 	return m.eventSvc.Put(ctx, event)
 }
 
-func (m *defaultManager) doNotify(ctx context.Context, event *events2.Event) error {
+func (m *defaultManager) doNotify(ctx context.Context, event events2.IEvent) error {
 	datas, err := m.recorder.Query(ctx, recorder.QueryCondition{
-		EventType: event.Type,
+		EventType: event.GetType(),
 	})
 	if err != nil {
 		return err
@@ -122,7 +129,8 @@ func (m *defaultManager) doNotify(ctx context.Context, event *events2.Event) err
 			m.logger.Errorln(err)
 			continue
 		}
-		err = m.notifier.Send(ctx, d.Url, d.ContentType, secret, event.Type, event.PayLoad)
+		nCtx, _ := context.WithTimeout(ctx, m.notifyTimeout)
+		err = m.notifier.Send(nCtx, d.Url, d.ContentType, secret, event.GetType(), event.GetPayLoad())
 		if err != nil {
 			_ = errList.Add(err)
 			m.logger.Errorln(err)
@@ -158,5 +166,11 @@ func (o opts) SetNotifier(n notifier2.Notifier) Opt {
 func (o opts) SetSignatureFunc(f SignatureFunc) Opt {
 	return func(m *defaultManager) {
 		m.signFunc = f
+	}
+}
+
+func (o opts) SetNotifyTimeout(t time.Duration) Opt {
+	return func(m *defaultManager) {
+		m.notifyTimeout = t
 	}
 }

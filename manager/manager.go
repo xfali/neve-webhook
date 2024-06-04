@@ -27,5 +27,5 @@ type Manager interface {
 
 	Close() error
 
-	Notify(ctx context.Context, event *events.Event) error
+	Notify(ctx context.Context, event events.IEvent) error
 }

@@ -30,7 +30,7 @@ var DisconnectedErr = errors.New("Service Disconnected ")
 
 type defaultEventService struct {
 	stopChan  chan struct{}
-	eventChan chan *Event
+	eventChan chan IEvent
 }
 
 func NewEventService(bufSize int) *defaultEventService {
@@ -38,7 +38,7 @@ func NewEventService(bufSize int) *defaultEventService {
 		bufSize = EventChanSize
 	}
 	ret := &defaultEventService{
-		eventChan: make(chan *Event, bufSize),
+		eventChan: make(chan IEvent, bufSize),
 	}
 
 	return ret
@@ -59,7 +59,7 @@ func (s *defaultEventService) Disconnect() error {
 	return nil
 }
 
-func (s *defaultEventService) Get(ctx context.Context) (*Event, error) {
+func (s *defaultEventService) Get(ctx context.Context) (IEvent, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -70,7 +70,7 @@ func (s *defaultEventService) Get(ctx context.Context) (*Event, error) {
 	}
 }
 
-func (s *defaultEventService) Put(ctx context.Context, event *Event) error {
+func (s *defaultEventService) Put(ctx context.Context, event IEvent) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()

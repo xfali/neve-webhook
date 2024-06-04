@@ -17,7 +17,20 @@
 
 package events
 
+type IEvent interface {
+	GetType() string
+	GetPayLoad() interface{}
+}
+
 type Event struct {
 	Type    string
 	PayLoad interface{}
+}
+
+func (e *Event) GetType() string {
+	return e.Type
+}
+
+func (e *Event) GetPayLoad() interface{} {
+	return e.PayLoad
 }

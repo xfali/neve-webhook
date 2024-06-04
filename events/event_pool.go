@@ -26,7 +26,7 @@ type Service interface {
 
 	Disconnect() error
 
-	Get(ctx context.Context) (*Event, error)
+	Get(ctx context.Context) (IEvent, error)
 
-	Put(ctx context.Context, event *Event) error
+	Put(ctx context.Context, event IEvent) error
 }
