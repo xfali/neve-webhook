@@ -31,7 +31,7 @@ type Data struct {
 type QueryCondition struct {
 	Id        string
 	EventType string
-	//Url       string
+	Url       string
 }
 
 type Recorder interface {

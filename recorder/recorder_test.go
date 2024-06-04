@@ -47,6 +47,27 @@ func TestRecorder(t *testing.T) {
 		t.Fatalf("Expect 1 but get %d\n", len(v))
 	}
 
+	_, err = r.Create(ctx, Data{
+		Url: "test",
+		TriggerEventTypes: []string{
+			"push",
+		},
+	})
+	if err == nil {
+		t.Fatalf("Expect error but get nil")
+	}
+
+	v, err = r.Query(ctx, QueryCondition{
+		Url: "test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+	if len(v) != 1 {
+		t.Fatalf("Expect 1 but get %d\n", len(v))
+	}
+
 	v, err = r.Query(ctx, QueryCondition{
 		EventType: "push",
 	})
@@ -73,6 +94,17 @@ func TestRecorder(t *testing.T) {
 	}
 	if v[0].Url != "world" {
 		t.Fatalf("Expect world but get %s\n", v[0].Url)
+	}
+
+	v, err = r.Query(ctx, QueryCondition{
+		Url: "world",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+	if len(v) != 1 {
+		t.Fatalf("Expect 1 but get %d\n", len(v))
 	}
 
 	err = r.Delete(ctx, id)

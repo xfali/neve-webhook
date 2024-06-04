@@ -30,6 +30,7 @@ type memRecorder struct {
 	locker      sync.RWMutex
 	idGenerator IdGenerator
 	eventMap    map[string]map[string]struct{}
+	urlMap      map[string]string
 	idMap       map[string]*Data
 }
 
@@ -58,6 +59,7 @@ func NewMemRecorder() *memRecorder {
 	ret := &memRecorder{
 		eventMap:    map[string]map[string]struct{}{},
 		idMap:       map[string]*Data{},
+		urlMap:      map[string]string{},
 		idGenerator: NewIdGenerator(),
 	}
 	return ret
@@ -71,19 +73,19 @@ func (r *memRecorder) Create(ctx context.Context, data Data) (string, error) {
 	r.locker.Lock()
 	defer r.locker.Unlock()
 
+	if data.Url == "" {
+		return "", fmt.Errorf("Url cannot be empty ")
+	}
+
+	if url := r.urlMap[data.Url]; url != "" {
+		return "", fmt.Errorf("Url have been exists ")
+	}
+
 	id := r.idGenerator.Next()
 	idStr := strconv.FormatInt(id, 10)
-	if v, ok := r.idMap[idStr]; ok {
-		for _, e := range v.TriggerEventTypes {
-			delete(r.eventMap[e], data.Url)
-		}
-		v.Url = data.Url
-		v.Secret = data.Secret
-		v.ContentType = data.ContentType
-		v.TriggerEventTypes = data.TriggerEventTypes
-	} else {
-		r.idMap[idStr] = &data
-	}
+
+	r.idMap[idStr] = &data
+	r.urlMap[data.Url] = idStr
 	for _, e := range data.TriggerEventTypes {
 		if m, ok := r.eventMap[e]; ok {
 			m[idStr] = struct{}{}
@@ -106,6 +108,10 @@ func (r *memRecorder) Update(ctx context.Context, id string, data Data) error {
 			delete(r.eventMap[e], data.Url)
 		}
 		if data.Url != "" {
+			if data.Url != v.Url {
+				delete(r.urlMap, v.Url)
+				r.urlMap[data.Url] = idStr
+			}
 			v.Url = data.Url
 		}
 		if data.Secret != "" {
@@ -139,6 +145,7 @@ func (r *memRecorder) Delete(ctx context.Context, id string) error {
 			delete(r.eventMap[e], v.Url)
 		}
 		delete(r.idMap, id)
+		delete(r.urlMap, v.Url)
 	}
 	return nil
 }
@@ -155,6 +162,10 @@ func (r *memRecorder) Query(ctx context.Context, condition QueryCondition) ([]Da
 		}
 	}
 
+	if condition.Url != "" {
+		return r.queryByUrl(ctx, condition.Url)
+	}
+
 	if condition.EventType != "" {
 		return r.queryByEventType(ctx, condition.EventType)
 	}
@@ -164,6 +175,18 @@ func (r *memRecorder) Query(ctx context.Context, condition QueryCondition) ([]Da
 		ret = append(ret, *v)
 	}
 	return ret, nil
+}
+
+func (r *memRecorder) queryByUrl(ctx context.Context, url string) ([]Data, error) {
+	r.locker.RLock()
+	defer r.locker.RUnlock()
+
+	id := r.urlMap[url]
+	if id == "" {
+		return nil, fmt.Errorf("Url %s not found ", url)
+	}
+
+	return []Data{*r.idMap[id]}, nil
 }
 
 func (r *memRecorder) queryByEventType(ctx context.Context, eventType string) ([]Data, error) {
