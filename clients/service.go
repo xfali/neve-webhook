@@ -28,18 +28,29 @@ import (
 type webHooksClient struct {
 	endpoint string
 	client   restclient.RestClient
+
+	CreatePath string `fig:"neve.web.hooks.routes.create"`
+	UpdatePath string `fig:"neve.web.hooks.routes.update"`
+	QueryPath  string `fig:"neve.web.hooks.routes.query"`
+	DetailPath string `fig:"neve.web.hooks.routes.detail"`
+	DeletePath string `fig:"neve.web.hooks.routes.delete"`
 }
 
 func NewWebHookClient(endpoint string, client restclient.RestClient) *webHooksClient {
-	return &webHooksClient{
+	ret := &webHooksClient{
 		endpoint: endpoint,
 		client:   client,
 	}
+	return ret
 }
 
 func (s *webHooksClient) Create(ctx context.Context, rec recorder.Data) (string, error) {
 	ret := Result[string]{}
-	err := s.client.Exchange(s.endpoint,
+	url := s.endpoint
+	if s.CreatePath != "" {
+		url = s.CreatePath
+	}
+	err := s.client.Exchange(url,
 		request.WithRequestContext(ctx),
 		request.MethodPost(),
 		request.WithRequestBody(rec),
@@ -48,7 +59,11 @@ func (s *webHooksClient) Create(ctx context.Context, rec recorder.Data) (string,
 }
 
 func (s *webHooksClient) Update(ctx context.Context, id string, rec recorder.Data) error {
-	err := s.client.Exchange(s.endpoint+"/"+id,
+	url := s.endpoint + "/" + id
+	if s.UpdatePath != "" {
+		url = s.UpdatePath
+	}
+	err := s.client.Exchange(url,
 		request.WithRequestContext(ctx),
 		request.MethodPut(),
 		request.WithRequestBody(rec))
@@ -56,8 +71,12 @@ func (s *webHooksClient) Update(ctx context.Context, id string, rec recorder.Dat
 }
 
 func (s *webHooksClient) Get(ctx context.Context, cond recorder.QueryCondition) ([]recorder.Data, error) {
+	url := s.endpoint
+	if s.QueryPath != "" {
+		url = s.QueryPath
+	}
 	ret := Result[[]recorder.Data]{}
-	err := s.client.Exchange(fmt.Sprintf("%s?id=%s&event_type=%s", s.endpoint, cond.Id, cond.EventType),
+	err := s.client.Exchange(fmt.Sprintf("%s?id=%s&event_type=%s", url, cond.Id, cond.EventType),
 		request.WithRequestContext(ctx),
 		request.MethodGet(),
 		request.WithResult(&ret))
@@ -65,8 +84,12 @@ func (s *webHooksClient) Get(ctx context.Context, cond recorder.QueryCondition) 
 }
 
 func (s *webHooksClient) Detail(ctx context.Context, id string) (recorder.Data, error) {
+	url := s.endpoint + "/" + id
+	if s.DetailPath != "" {
+		url = s.DetailPath
+	}
 	ret := Result[recorder.Data]{}
-	err := s.client.Exchange(s.endpoint+"/"+id,
+	err := s.client.Exchange(url,
 		request.WithRequestContext(ctx),
 		request.MethodGet(),
 		request.WithResult(&ret))
@@ -74,7 +97,11 @@ func (s *webHooksClient) Detail(ctx context.Context, id string) (recorder.Data, 
 }
 
 func (s *webHooksClient) Delete(ctx context.Context, id string) error {
-	err := s.client.Exchange(s.endpoint+"/"+id,
+	url := s.endpoint + "/" + id
+	if s.DeletePath != "" {
+		url = s.DeletePath
+	}
+	err := s.client.Exchange(url,
 		request.WithRequestContext(ctx),
 		request.MethodDelete())
 	return err

@@ -17,3 +17,14 @@ neve:
       readTimeout: 15
       writeTimeout: 15
       idleTimeout: 15
+
+    hooks:
+      routes:
+        create: "/test0/webhooks"
+        update: "/test1/webhooks"
+        query: "/test2/webhooks"
+        detail: "/test3/webhooks"
+        delete: "/test4/webhooks"
+
+
+

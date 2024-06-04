@@ -37,6 +37,12 @@ type webHookHandler struct {
 
 	Service service.WebHookService `inject:""`
 
+	CreatePath string `fig:"neve.web.hooks.routes.create"`
+	UpdatePath string `fig:"neve.web.hooks.routes.update"`
+	QueryPath  string `fig:"neve.web.hooks.routes.query"`
+	DetailPath string `fig:"neve.web.hooks.routes.detail"`
+	DeletePath string `fig:"neve.web.hooks.routes.delete"`
+
 	respFunc ResponseFunc
 }
 
@@ -48,11 +54,26 @@ func NewWebHookHandler() *webHookHandler {
 }
 
 func (o *webHookHandler) HttpRoutes(engine gin.IRouter) {
-	engine.POST("/webhooks", o.create)
-	engine.PUT("/webhooks/:id", o.update)
-	engine.GET("/webhooks", o.get)
-	engine.GET("/webhooks/:id", o.detail)
-	engine.DELETE("/webhooks/:id", o.delete)
+	if o.CreatePath == "" {
+		o.CreatePath = "/webhooks"
+	}
+	if o.UpdatePath == "" {
+		o.UpdatePath = "/webhooks/:id"
+	}
+	if o.QueryPath == "" {
+		o.QueryPath = "/webhooks"
+	}
+	if o.DetailPath == "" {
+		o.DetailPath = "/webhooks/:id"
+	}
+	if o.DeletePath == "" {
+		o.DeletePath = "/webhooks/:id"
+	}
+	engine.POST(o.CreatePath, o.HLog.LogHttp(), o.create)
+	engine.PUT(o.UpdatePath, o.HLog.LogHttp(), o.update)
+	engine.GET(o.QueryPath, o.HLog.LogHttp(), o.get)
+	engine.GET(o.DetailPath, o.HLog.LogHttp(), o.detail)
+	engine.DELETE(o.DeletePath, o.HLog.LogHttp(), o.delete)
 }
 
 func (o *webHookHandler) create(ctx *gin.Context) {

@@ -24,27 +24,24 @@ import (
 	"github.com/xfali/neve-webhook/notifier"
 	"github.com/xfali/neve-webhook/recorder"
 	"github.com/xfali/neve-webhook/service"
-	"github.com/xfali/restclient/v2"
 	"github.com/xfali/xlog"
 	"net/http"
 )
 
 type TestHandler struct {
 	logger xlog.Logger
-	cli    service.WebHookService
+	Cli    service.WebHookService `inject:""`
 	id     string
 }
 
 func NewTestHandler() *TestHandler {
-	cli := clients.NewWebHookClient("http://localhost:8080/webhooks", restclient.New())
 	return &TestHandler{
 		logger: xlog.GetLogger(),
-		cli:    cli,
 	}
 }
 
 func (o *TestHandler) BeanAfterSet() error {
-	id, err := o.cli.Create(context.Background(), recorder.Data{
+	id, err := o.Cli.Create(context.Background(), recorder.Data{
 		Url:    "http://localhost:8081/events",
 		Secret: "just-test",
 		TriggerEventTypes: []string{
@@ -60,7 +57,7 @@ func (o *TestHandler) BeanAfterSet() error {
 
 func (o *TestHandler) BeanDestroy() error {
 	if o.id != "" {
-		return o.cli.Delete(context.Background(), o.id)
+		return o.Cli.Delete(context.Background(), o.id)
 	}
 	return nil
 }

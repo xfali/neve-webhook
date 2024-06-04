@@ -19,8 +19,11 @@ package main
 
 import (
 	"github.com/xfali/neve-core"
+	"github.com/xfali/neve-core/processor"
 	"github.com/xfali/neve-utils/neverror"
 	neveweb "github.com/xfali/neve-web"
+	"github.com/xfali/neve-webhook/clients"
+	"github.com/xfali/restclient/v2"
 	"github.com/xfali/xlog"
 	"os"
 )
@@ -28,7 +31,10 @@ import (
 func main() {
 	xlog.Infoln(os.Getwd())
 	app := neve.NewFileConfigApplication("examples/client/config.yaml")
+	neverror.PanicError(app.RegisterBean(processor.NewValueProcessor()))
 	neverror.PanicError(app.RegisterBean(neveweb.NewGinProcessor()))
+	cli := clients.NewWebHookClient("http://localhost:8080/webhooks", restclient.New())
+	neverror.PanicError(app.RegisterBean(cli))
 	neverror.PanicError(app.RegisterBean(NewTestHandler()))
 	neverror.PanicError(app.Run())
 }
