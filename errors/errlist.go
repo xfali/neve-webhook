@@ -17,23 +17,61 @@
 
 package errors
 
-import "strings"
+import (
+	"strings"
+	"sync"
+)
 
-type ErrorList []error
-
-func (l *ErrorList) Add(e ...error) *ErrorList {
-	*l = append(*l, e...)
-	return l
+type ErrorList interface {
+	Add(e ...error)
+	Empty() bool
+	Error() string
 }
 
-func (l ErrorList) Empty() bool {
+type ErrList []error
+
+func (l *ErrList) Add(e ...error) {
+	*l = append(*l, e...)
+}
+
+func (l ErrList) Empty() bool {
 	return len(l) == 0
 }
 
-func (l ErrorList) Error() string {
+func (l ErrList) Error() string {
 	buf := strings.Builder{}
 	buf.WriteString("Have errors: ")
 	for _, e := range l {
+		buf.WriteString(e.Error())
+		buf.WriteString(", ")
+	}
+	ret := buf.String()
+	return ret[:len(ret)-2]
+}
+
+type LockedErrList struct {
+	errs   []error
+	locker sync.RWMutex
+}
+
+func (l *LockedErrList) Add(e ...error) {
+	l.locker.Lock()
+	defer l.locker.Unlock()
+	l.errs = append(l.errs, e...)
+}
+
+func (l *LockedErrList) Empty() bool {
+	l.locker.RLocker()
+	defer l.locker.RUnlock()
+	return len(l.errs) == 0
+}
+
+func (l *LockedErrList) Error() string {
+	l.locker.RLocker()
+	defer l.locker.RUnlock()
+	buf := strings.Builder{}
+	buf.WriteString("Have errors: ")
+	for _, e := range l.errs {
 		buf.WriteString(e.Error())
 		buf.WriteString(", ")
 	}

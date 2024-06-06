@@ -22,7 +22,7 @@ import (
 	"testing"
 )
 
-func TestRecorder(t *testing.T) {
+func TestRecorder1(t *testing.T) {
 	r := NewMemRecorder()
 	ctx := context.Background()
 	id, err := r.Create(ctx, Data{
@@ -36,7 +36,7 @@ func TestRecorder(t *testing.T) {
 	}
 	t.Log(id)
 
-	v, err := r.Query(ctx, QueryCondition{
+	v, _, err := r.Query(ctx, QueryCondition{
 		Id: id,
 	})
 	if err != nil {
@@ -57,7 +57,7 @@ func TestRecorder(t *testing.T) {
 		t.Fatalf("Expect error but get nil")
 	}
 
-	v, err = r.Query(ctx, QueryCondition{
+	v, _, err = r.Query(ctx, QueryCondition{
 		Url: "test",
 	})
 	if err != nil {
@@ -68,7 +68,7 @@ func TestRecorder(t *testing.T) {
 		t.Fatalf("Expect 1 but get %d\n", len(v))
 	}
 
-	v, err = r.Query(ctx, QueryCondition{
+	v, _, err = r.Query(ctx, QueryCondition{
 		EventType: "push",
 	})
 	if err != nil {
@@ -85,7 +85,7 @@ func TestRecorder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	v, _ = r.Query(ctx, QueryCondition{
+	v, _, _ = r.Query(ctx, QueryCondition{
 		Id: id,
 	})
 	t.Log(v)
@@ -96,7 +96,7 @@ func TestRecorder(t *testing.T) {
 		t.Fatalf("Expect world but get %s\n", v[0].Url)
 	}
 
-	v, err = r.Query(ctx, QueryCondition{
+	v, _, err = r.Query(ctx, QueryCondition{
 		Url: "world",
 	})
 	if err != nil {
@@ -112,12 +112,110 @@ func TestRecorder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	v, err = r.Query(ctx, QueryCondition{})
+	v, _, err = r.Query(ctx, QueryCondition{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if len(v) != 0 {
 		t.Fatalf("Expect 0 but get %d\n", len(v))
+	}
+}
+
+func TestRecorder2(t *testing.T) {
+	r := NewMemRecorder()
+	ctx := context.Background()
+	id, err := r.Create(ctx, Data{
+		Url: "test1",
+		TriggerEventTypes: []string{
+			"push",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(id)
+
+	id, err = r.Create(ctx, Data{
+		Url: "test2",
+		TriggerEventTypes: []string{
+			"push",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(id)
+
+	id, err = r.Create(ctx, Data{
+		Url: "test3",
+		TriggerEventTypes: []string{
+			"push",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(id)
+
+	v, _, err := r.Query(ctx, QueryCondition{
+		EventType: "push",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+	if len(v) != 3 {
+		t.Fatalf("Expect 3 but get %d\n", len(v))
+	}
+
+	if v[0].Url != "test1" {
+		t.Fatalf("Expect test1 but get %s\n", v[0].Url)
+	}
+
+	if v[1].Url != "test2" {
+		t.Fatalf("Expect test1 but get %s\n", v[1].Url)
+	}
+
+	if v[2].Url != "test3" {
+		t.Fatalf("Expect test1 but get %s\n", v[2].Url)
+	}
+
+	v, _, err = r.Query(ctx, QueryCondition{
+		EventType: "push",
+		Offset:    0,
+		PageSize:  2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+	if len(v) != 2 {
+		t.Fatalf("Expect 2 but get %d\n", len(v))
+	}
+
+	if v[0].Url != "test1" {
+		t.Fatalf("Expect test3 but get %s\n", v[0].Url)
+	}
+
+	if v[1].Url != "test2" {
+		t.Fatalf("Expect test1 but get %s\n", v[1].Url)
+	}
+
+	v, _, err = r.Query(ctx, QueryCondition{
+		EventType: "push",
+		Offset:    1,
+		PageSize:  2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(v)
+	if len(v) != 1 {
+		t.Fatalf("Expect 1 but get %d\n", len(v))
+	}
+
+	if v[0].Url != "test3" {
+		t.Fatalf("Expect test3 but get %s\n", v[0].Url)
 	}
 }

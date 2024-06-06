@@ -15,13 +15,8 @@
  * limitations under the License.
  */
 
-package notifier
+package serialize
 
-import (
-	"context"
-	"github.com/xfali/neve-webhook/events"
-)
-
-type Notifier interface {
-	Send(ctx context.Context, url string, contentType string, secret string, event events.IEvent) ([]byte, error)
+type Deserializer interface {
+	Deserialize([]byte) (interface{}, error)
 }

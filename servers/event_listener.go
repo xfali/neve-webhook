@@ -49,7 +49,7 @@ func (l *eventListener) RegisterConsumer(registry appcontext.ApplicationEventCon
 // 当事件为*customerEvent类型时自动匹配并调用该方法
 // customerEvent需实现ApplicationEvent接口
 func (l *eventListener) handlerEvent(event WebhookEvent) {
-	err := l.Manager.Notify(context.Background(), event)
+	_, err := l.Manager.Notify(context.Background(), event, nil)
 	if err != nil {
 		l.logger.Errorln(err)
 	}

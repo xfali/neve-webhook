@@ -44,11 +44,12 @@ func (s *webHookServiceImpl) Update(ctx context.Context, id string, rec recorder
 }
 
 func (s *webHookServiceImpl) Get(ctx context.Context, cond recorder.QueryCondition) ([]recorder.Data, error) {
-	return s.Recorder.Query(ctx, cond)
+	v, _, err := s.Recorder.Query(ctx, cond)
+	return v, err
 }
 
 func (s *webHookServiceImpl) Detail(ctx context.Context, id string) (recorder.Data, error) {
-	v, err := s.Recorder.Query(ctx, recorder.QueryCondition{Id: id})
+	v, _, err := s.Recorder.Query(ctx, recorder.QueryCondition{Id: id})
 	if err != nil {
 		return recorder.Data{}, err
 	}

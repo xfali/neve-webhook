@@ -45,10 +45,10 @@ func (o *Service) BeanAfterSet() error {
 			case <-o.stopChan:
 				return
 			case <-ticker.C:
-				_ = o.Manager.Notify(context.Background(), &events.Event{
+				o.Manager.Notify(context.Background(), &events.Event{
 					Type:    "push",
 					PayLoad: result.Ok("This is a test"),
-				})
+				}, nil)
 			}
 		}
 	}()

@@ -20,6 +20,7 @@ package manager
 import (
 	"context"
 	"github.com/xfali/neve-webhook/events"
+	"github.com/xfali/neve-webhook/serialize"
 )
 
 type Manager interface {
@@ -27,5 +28,5 @@ type Manager interface {
 
 	Close() error
 
-	Notify(ctx context.Context, event events.IEvent) error
+	Notify(ctx context.Context, event events.IEvent, d serialize.Deserializer) (respChan <-chan interface{}, err error)
 }

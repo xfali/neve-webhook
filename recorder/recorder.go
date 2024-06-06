@@ -19,27 +19,40 @@ package recorder
 
 import (
 	"context"
+	"time"
 )
 
 type Data struct {
-	Url               string   `json:"url" xml:"url" yaml:"url"`
-	ContentType       string   `json:"content_type" xml:"content_type" yaml:"content_type"`
-	Secret            string   `json:"secret" xml:"secret" yaml:"secret"`
-	TriggerEventTypes []string `json:"event_type" xml:"event_type" yaml:"event_type"`
+	ID                string    `json:"id" xml:"id" yaml:"id"`
+	Url               string    `json:"url" xml:"url" yaml:"url"`
+	ContentType       string    `json:"content_type" xml:"content_type" yaml:"content_type"`
+	Secret            string    `json:"secret" xml:"secret" yaml:"secret"`
+	TriggerEventTypes []string  `json:"event_type" xml:"event_type" yaml:"event_type"`
+	FailureCount      int64     `json:"failure_count" xml:"failure_count" yaml:"failure_count"`
+	SuccessCount      int64     `json:"success_count" xml:"success_count" yaml:"success_count"`
+	LastFailureTime   time.Time `json:"last_failure_time" xml:"last_failure_time" yaml:"last_failure_time"`
+	LastSuccessTime   time.Time `json:"last_success_time" xml:"last_success_time" yaml:"last_success_time"`
 }
 
 type QueryCondition struct {
 	Id        string
 	EventType string
 	Url       string
+
+	// Current page, start with 0
+	Offset int64
+	// Page size, default 20
+	PageSize int64
 }
 
 type Recorder interface {
-	Query(ctx context.Context, condition QueryCondition) ([]Data, error)
+	Query(ctx context.Context, condition QueryCondition) ([]Data, int64, error)
 
 	Create(ctx context.Context, data Data) (string, error)
 
 	Update(ctx context.Context, id string, data Data) error
+
+	UpdateNotifyStatus(ctx context.Context, id string, updateTime time.Time, success bool) error
 
 	Delete(ctx context.Context, id string) error
 }

@@ -20,8 +20,10 @@ package recorder
 import (
 	"context"
 	"fmt"
+	"github.com/xfali/goutils/container/xmap"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type Opt func(r *simpleRecorder)
@@ -29,9 +31,9 @@ type Opt func(r *simpleRecorder)
 type memRecorder struct {
 	locker      sync.RWMutex
 	idGenerator IdGenerator
-	eventMap    map[string]map[string]struct{}
+	eventMap    map[string]*xmap.LinkedMap
 	urlMap      map[string]string
-	idMap       map[string]*Data
+	idMap       *xmap.LinkedMap
 }
 
 type ContextFilter interface {
@@ -57,8 +59,8 @@ func NewSimpleRecorder() *simpleRecorder {
 
 func NewMemRecorder() *memRecorder {
 	ret := &memRecorder{
-		eventMap:    map[string]map[string]struct{}{},
-		idMap:       map[string]*Data{},
+		eventMap:    map[string]*xmap.LinkedMap{},
+		idMap:       xmap.NewLinkedMap(),
 		urlMap:      map[string]string{},
 		idGenerator: NewIdGenerator(),
 	}
@@ -84,15 +86,18 @@ func (r *memRecorder) Create(ctx context.Context, data Data) (string, error) {
 	id := r.idGenerator.Next()
 	idStr := strconv.FormatInt(id, 10)
 
-	r.idMap[idStr] = &data
+	data.ID = idStr
+	r.idMap.Put(idStr, &data)
 	r.urlMap[data.Url] = idStr
 	for _, e := range data.TriggerEventTypes {
 		if m, ok := r.eventMap[e]; ok {
-			m[idStr] = struct{}{}
+			m.Put(idStr, struct {
+			}{})
 		} else {
-			r.eventMap[e] = map[string]struct{}{
-				idStr: {},
-			}
+			lm := xmap.NewLinkedMap()
+			lm.Put(idStr, struct {
+			}{})
+			r.eventMap[e] = lm
 		}
 	}
 	return idStr, nil
@@ -103,9 +108,11 @@ func (r *memRecorder) Update(ctx context.Context, id string, data Data) error {
 	defer r.locker.Unlock()
 
 	idStr := id
-	if v, ok := r.idMap[idStr]; ok {
+
+	if x, ok := r.idMap.Get(idStr); ok {
+		v := x.(*Data)
 		for _, e := range v.TriggerEventTypes {
-			delete(r.eventMap[e], data.Url)
+			r.eventMap[e].Delete(data.Url)
 		}
 		if data.Url != "" {
 			if data.Url != v.Url {
@@ -126,12 +133,34 @@ func (r *memRecorder) Update(ctx context.Context, id string, data Data) error {
 	}
 	for _, e := range data.TriggerEventTypes {
 		if m, ok := r.eventMap[e]; ok {
-			m[idStr] = struct{}{}
+			m.Put(idStr, struct {
+			}{})
 		} else {
-			r.eventMap[e] = map[string]struct{}{
-				idStr: {},
-			}
+			lm := xmap.NewLinkedMap()
+			lm.Put(idStr, struct {
+			}{})
+			r.eventMap[e] = lm
 		}
+	}
+	return nil
+}
+
+func (r *memRecorder) UpdateNotifyStatus(ctx context.Context, id string, updateTime time.Time, success bool) error {
+	r.locker.Lock()
+	defer r.locker.Unlock()
+
+	idStr := id
+	if x, ok := r.idMap.Get(idStr); ok {
+		v := x.(*Data)
+		if success {
+			v.SuccessCount += 1
+			v.LastSuccessTime = updateTime
+		} else {
+			v.FailureCount += 1
+			v.LastFailureTime = updateTime
+		}
+	} else {
+		return fmt.Errorf("ID %s not found ", id)
 	}
 	return nil
 }
@@ -140,66 +169,99 @@ func (r *memRecorder) Delete(ctx context.Context, id string) error {
 	r.locker.Lock()
 	defer r.locker.Unlock()
 
-	if v, ok := r.idMap[id]; ok {
+	if x, ok := r.idMap.Get(id); ok {
+		v := x.(*Data)
 		for _, e := range v.TriggerEventTypes {
-			delete(r.eventMap[e], v.Url)
+			r.eventMap[e].Delete(v.Url)
 		}
-		delete(r.idMap, id)
+		r.idMap.Delete(id)
 		delete(r.urlMap, v.Url)
 	}
 	return nil
 }
 
-func (r *memRecorder) Query(ctx context.Context, condition QueryCondition) ([]Data, error) {
+func (r *memRecorder) Query(ctx context.Context, condition QueryCondition) ([]Data, int64, error) {
 	r.locker.RLock()
 	defer r.locker.RUnlock()
 
+	if condition.PageSize == 0 {
+		condition.PageSize = 20
+	}
+	total := int64(r.idMap.Size())
 	if condition.Id != "" {
-		if v, ok := r.idMap[condition.Id]; ok {
-			return []Data{*v}, nil
+		if v, ok := r.idMap.Get(condition.Id); ok {
+			return []Data{*v.(*Data)}, total, nil
 		} else {
-			return nil, fmt.Errorf("ID %s not found ", condition.Id)
+			return nil, total, fmt.Errorf("ID %s not found ", condition.Id)
 		}
 	}
 
 	if condition.Url != "" {
-		return r.queryByUrl(ctx, condition.Url)
+		ret, err := r.queryByUrl(ctx, condition.Url)
+		return ret, total, err
 	}
 
 	if condition.EventType != "" {
-		return r.queryByEventType(ctx, condition.EventType)
+		ret, err := r.queryByEventType(ctx, condition.EventType, condition.Offset, condition.PageSize)
+		return ret, total, err
 	}
 
-	ret := make([]Data, 0, len(r.idMap))
-	for _, v := range r.idMap {
-		ret = append(ret, *v)
-	}
-	return ret, nil
+	ret := make([]Data, 0, condition.PageSize)
+	skip := condition.Offset * condition.PageSize
+	current := int64(0)
+	r.idMap.Foreach(func(key interface{}, value interface{}) bool {
+		if skip > current {
+			current++
+			return true
+		}
+		if current-skip < condition.PageSize {
+			ret = append(ret, *value.(*Data))
+			current++
+			return true
+		} else {
+			return false
+		}
+	})
+	return ret, total, nil
 }
 
 func (r *memRecorder) queryByUrl(ctx context.Context, url string) ([]Data, error) {
-	r.locker.RLock()
-	defer r.locker.RUnlock()
-
 	id := r.urlMap[url]
 	if id == "" {
 		return nil, fmt.Errorf("Url %s not found ", url)
 	}
 
-	return []Data{*r.idMap[id]}, nil
+	v, have := r.idMap.Get(id)
+	if !have {
+		return nil, fmt.Errorf("Url %s not found ", url)
+	}
+	return []Data{*v.(*Data)}, nil
 }
 
-func (r *memRecorder) queryByEventType(ctx context.Context, eventType string) ([]Data, error) {
-	r.locker.RLock()
-	defer r.locker.RUnlock()
-
+func (r *memRecorder) queryByEventType(ctx context.Context, eventType string, offset, pageSize int64) ([]Data, error) {
 	maps := r.eventMap[eventType]
 
-	if len(maps) > 0 {
-		ret := make([]Data, 0, len(maps))
-		for k := range maps {
-			ret = append(ret, *r.idMap[k])
-		}
+	if maps != nil && maps.Size() > 0 {
+		skip := offset * pageSize
+		current := int64(0)
+
+		ret := make([]Data, 0, 16)
+		maps.Foreach(func(key interface{}, value interface{}) bool {
+			if skip > current {
+				current++
+				return true
+			}
+			if current-skip < pageSize {
+				if v, have := r.idMap.Get(key); have {
+					ret = append(ret, *v.(*Data))
+				}
+				current++
+				return true
+			} else {
+				return false
+			}
+		})
+
 		return ret, nil
 	}
 	return nil, nil
@@ -217,10 +279,10 @@ func (r *simpleRecorder) Create(ctx context.Context, data Data) (string, error) 
 	return rr.Create(ctx, data)
 }
 
-func (r *simpleRecorder) Query(ctx context.Context, condition QueryCondition) ([]Data, error) {
+func (r *simpleRecorder) Query(ctx context.Context, condition QueryCondition) ([]Data, int64, error) {
 	rr, err := r.filter.Filter(ctx)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	return rr.Query(ctx, condition)
 }
@@ -231,6 +293,14 @@ func (r *simpleRecorder) Update(ctx context.Context, id string, data Data) error
 		return err
 	}
 	return rr.Update(ctx, id, data)
+}
+
+func (r *simpleRecorder) UpdateNotifyStatus(ctx context.Context, id string, updateTime time.Time, success bool) error {
+	rr, err := r.filter.Filter(ctx)
+	if err != nil {
+		return err
+	}
+	return rr.UpdateNotifyStatus(ctx, id, updateTime, success)
 }
 
 func (r *simpleRecorder) Delete(ctx context.Context, id string) error {

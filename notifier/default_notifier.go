@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"github.com/xfali/neve-webhook/events"
 	"github.com/xfali/xlog"
 	"io"
 	"io/ioutil"
@@ -77,24 +78,26 @@ func NewHttpNotifier(client *http.Client) *httpNotifier {
 	return ret
 }
 
-func (n *httpNotifier) Send(ctx context.Context, url string, contentType string, secretSign string, eventType string, payLoad interface{}) error {
+func (n *httpNotifier) Send(ctx context.Context, url string, contentType string, secretSign string, event events.IEvent) ([]byte, error) {
 	var data []byte
 	var err error
 	if contentType == "" {
 		contentType = "application/json"
 	}
+	eventType := event.GetType()
+	payload := event.GetPayLoad()
 	if strings.Index(contentType, "application/json") == 0 {
-		if payLoad != nil {
-			data, err = json.Marshal(payLoad)
+		if payload != nil {
+			data, err = json.Marshal(payload)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	} else if strings.Index(contentType, "application/xml") == 0 {
-		if payLoad != nil {
-			data, err = xml.Marshal(payLoad)
+		if payload != nil {
+			data, err = xml.Marshal(payload)
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
@@ -105,7 +108,7 @@ func (n *httpNotifier) Send(ctx context.Context, url string, contentType string,
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, r)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	req.Header.Set("Content-Type", contentType)
@@ -113,19 +116,20 @@ func (n *httpNotifier) Send(ctx context.Context, url string, contentType string,
 	req.Header.Set(EventSignatureHeader, secretSign)
 	resp, err := n.client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
+	d, _ := ioutil.ReadAll(resp.Body)
 
 	if resp.StatusCode >= 400 {
 		err = fmt.Errorf("Notify to URL %s failed, http status: %d ", url, resp.StatusCode)
-		d, _ := ioutil.ReadAll(resp.Body)
+
 		respStr := ""
 		if len(d) > 0 {
 			respStr = string(d)
 		}
 		n.logger.Errorf("Notify error: %v, response data: %s \n", err, respStr)
-		return err
+		return nil, err
 	}
-	return nil
+	return d, nil
 }
