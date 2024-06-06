@@ -36,11 +36,11 @@ func NewWebHookService() *webHookServiceImpl {
 	}
 }
 
-func (s *webHookServiceImpl) Create(ctx context.Context, rec recorder.Data) (string, error) {
+func (s *webHookServiceImpl) Create(ctx context.Context, rec recorder.Input) (string, error) {
 	return s.Recorder.Create(ctx, rec)
 }
 
-func (s *webHookServiceImpl) Update(ctx context.Context, id string, rec recorder.Data) error {
+func (s *webHookServiceImpl) Update(ctx context.Context, id string, rec recorder.Input) error {
 	return s.Recorder.Update(ctx, id, rec)
 }
 

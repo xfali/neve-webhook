@@ -23,9 +23,9 @@ import (
 )
 
 type WebHookService interface {
-	Create(ctx context.Context, rec recorder.Data) (string, error)
+	Create(ctx context.Context, rec recorder.Input) (string, error)
 
-	Update(ctx context.Context, id string, rec recorder.Data) error
+	Update(ctx context.Context, id string, rec recorder.Input) error
 
 	Get(ctx context.Context, cond recorder.QueryCondition) (ListData, error)
 

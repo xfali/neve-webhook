@@ -71,22 +71,24 @@ func (r *singleFilter) Filter(ctx context.Context) (Recorder, error) {
 	return r.r, nil
 }
 
-func (r *memRecorder) Create(ctx context.Context, data Data) (string, error) {
+func (r *memRecorder) Create(ctx context.Context, input Input) (string, error) {
 	r.locker.Lock()
 	defer r.locker.Unlock()
 
-	if data.Url == "" {
+	if input.Url == "" {
 		return "", fmt.Errorf("Url cannot be empty ")
 	}
 
-	if url := r.urlMap[data.Url]; url != "" {
+	if url := r.urlMap[input.Url]; url != "" {
 		return "", fmt.Errorf("Url have been exists ")
 	}
 
 	id := r.idGenerator.Next()
 	idStr := strconv.FormatInt(id, 10)
 
+	data := input.ToData()
 	data.ID = idStr
+	data.State = HookStateNormal
 	r.idMap.Put(idStr, &data)
 	r.urlMap[data.Url] = idStr
 	for _, e := range data.TriggerEventTypes {
@@ -103,11 +105,9 @@ func (r *memRecorder) Create(ctx context.Context, data Data) (string, error) {
 	return idStr, nil
 }
 
-func (r *memRecorder) Update(ctx context.Context, id string, data Data) error {
+func (r *memRecorder) Update(ctx context.Context, idStr string, data Input) error {
 	r.locker.Lock()
 	defer r.locker.Unlock()
-
-	idStr := id
 
 	if x, ok := r.idMap.Get(idStr); ok {
 		v := x.(*Data)
@@ -127,9 +127,12 @@ func (r *memRecorder) Update(ctx context.Context, id string, data Data) error {
 		if data.ContentType != "" {
 			v.ContentType = data.ContentType
 		}
+		if data.State != "" {
+			v.State = data.State
+		}
 		v.TriggerEventTypes = data.TriggerEventTypes
 	} else {
-		return fmt.Errorf("ID %s not found ", id)
+		return fmt.Errorf("ID %s not found ", idStr)
 	}
 	for _, e := range data.TriggerEventTypes {
 		if m, ok := r.eventMap[e]; ok {
@@ -202,7 +205,7 @@ func (r *memRecorder) Query(ctx context.Context, condition QueryCondition) ([]Da
 	}
 
 	if condition.EventType != "" {
-		ret, err := r.queryByEventType(ctx, condition.EventType, condition.Offset, condition.PageSize)
+		ret, err := r.queryByEventType(ctx, condition.EventType, condition.State, condition.Offset, condition.PageSize)
 		return ret, total, err
 	}
 
@@ -215,7 +218,14 @@ func (r *memRecorder) Query(ctx context.Context, condition QueryCondition) ([]Da
 			return true
 		}
 		if current-skip < condition.PageSize {
-			ret = append(ret, *value.(*Data))
+			hd := value.(*Data)
+			if condition.State != "" {
+				if hd.State == condition.State {
+					ret = append(ret, *hd)
+				}
+			} else {
+				ret = append(ret, *hd)
+			}
 			current++
 			return true
 		} else {
@@ -238,7 +248,7 @@ func (r *memRecorder) queryByUrl(ctx context.Context, url string) ([]Data, error
 	return []Data{*v.(*Data)}, nil
 }
 
-func (r *memRecorder) queryByEventType(ctx context.Context, eventType string, offset, pageSize int64) ([]Data, error) {
+func (r *memRecorder) queryByEventType(ctx context.Context, eventType, state string, offset, pageSize int64) ([]Data, error) {
 	maps := r.eventMap[eventType]
 
 	if maps != nil && maps.Size() > 0 {
@@ -253,7 +263,14 @@ func (r *memRecorder) queryByEventType(ctx context.Context, eventType string, of
 			}
 			if current-skip < pageSize {
 				if v, have := r.idMap.Get(key); have {
-					ret = append(ret, *v.(*Data))
+					hd := v.(*Data)
+					if state != "" {
+						if hd.State == state {
+							ret = append(ret, *hd)
+						}
+					} else {
+						ret = append(ret, *hd)
+					}
 				}
 				current++
 				return true
@@ -271,7 +288,7 @@ type simpleRecorder struct {
 	filter ContextFilter
 }
 
-func (r *simpleRecorder) Create(ctx context.Context, data Data) (string, error) {
+func (r *simpleRecorder) Create(ctx context.Context, data Input) (string, error) {
 	rr, err := r.filter.Filter(ctx)
 	if err != nil {
 		return "", err
@@ -287,7 +304,7 @@ func (r *simpleRecorder) Query(ctx context.Context, condition QueryCondition) ([
 	return rr.Query(ctx, condition)
 }
 
-func (r *simpleRecorder) Update(ctx context.Context, id string, data Data) error {
+func (r *simpleRecorder) Update(ctx context.Context, id string, data Input) error {
 	rr, err := r.filter.Filter(ctx)
 	if err != nil {
 		return err

@@ -43,7 +43,7 @@ func NewTestHandler() *TestHandler {
 }
 
 func (o *TestHandler) BeanAfterSet() error {
-	id, err := o.Cli.Create(context.Background(), recorder.Data{
+	id, err := o.Cli.Create(context.Background(), recorder.Input{
 		Url:    o.Endpoint,
 		Secret: "just-test",
 		TriggerEventTypes: []string{

@@ -87,6 +87,7 @@ func (m *blockManager) Notify(ctx context.Context, event events.IEvent, ds seria
 	for {
 		datas, _, err := m.recorder.Query(ctx, recorder.QueryCondition{
 			EventType: event.GetType(),
+			State:     recorder.HookStateNormal,
 			Offset:    offset,
 			PageSize:  ResponseChanBufferSize,
 		})

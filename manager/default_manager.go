@@ -121,6 +121,7 @@ func (m *defaultManager) doNotify(ctx context.Context, event events.IEvent) erro
 	for {
 		datas, _, err := m.recorder.Query(ctx, recorder.QueryCondition{
 			EventType: event.GetType(),
+			State:     recorder.HookStateNormal,
 			Offset:    offset,
 			PageSize:  NotifySize,
 		})

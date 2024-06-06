@@ -45,7 +45,7 @@ func NewWebHookClient(endpoint string, client restclient.RestClient) *webHooksCl
 	return ret
 }
 
-func (s *webHooksClient) Create(ctx context.Context, rec recorder.Data) (string, error) {
+func (s *webHooksClient) Create(ctx context.Context, rec recorder.Input) (string, error) {
 	ret := Result[string]{}
 	url := s.endpoint
 	if s.CreatePath != "" {
@@ -59,7 +59,7 @@ func (s *webHooksClient) Create(ctx context.Context, rec recorder.Data) (string,
 	return ret.Data, err
 }
 
-func (s *webHooksClient) Update(ctx context.Context, id string, rec recorder.Data) error {
+func (s *webHooksClient) Update(ctx context.Context, id string, rec recorder.Input) error {
 	url := s.endpoint + "/" + id
 	if s.UpdatePath != "" {
 		url = s.UpdatePath

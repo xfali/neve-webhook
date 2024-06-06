@@ -25,7 +25,7 @@ import (
 func TestRecorder1(t *testing.T) {
 	r := NewMemRecorder()
 	ctx := context.Background()
-	id, err := r.Create(ctx, Data{
+	id, err := r.Create(ctx, Input{
 		Url: "test",
 		TriggerEventTypes: []string{
 			"push",
@@ -47,7 +47,7 @@ func TestRecorder1(t *testing.T) {
 		t.Fatalf("Expect 1 but get %d\n", len(v))
 	}
 
-	_, err = r.Create(ctx, Data{
+	_, err = r.Create(ctx, Input{
 		Url: "test",
 		TriggerEventTypes: []string{
 			"push",
@@ -79,7 +79,7 @@ func TestRecorder1(t *testing.T) {
 		t.Fatalf("Expect 1 but get %d\n", len(v))
 	}
 
-	err = r.Update(ctx, id, Data{
+	err = r.Update(ctx, id, Input{
 		Url: "world",
 	})
 	if err != nil {
@@ -125,7 +125,7 @@ func TestRecorder1(t *testing.T) {
 func TestRecorder2(t *testing.T) {
 	r := NewMemRecorder()
 	ctx := context.Background()
-	id, err := r.Create(ctx, Data{
+	id, err := r.Create(ctx, Input{
 		Url: "test1",
 		TriggerEventTypes: []string{
 			"push",
@@ -136,7 +136,7 @@ func TestRecorder2(t *testing.T) {
 	}
 	t.Log(id)
 
-	id, err = r.Create(ctx, Data{
+	id, err = r.Create(ctx, Input{
 		Url: "test2",
 		TriggerEventTypes: []string{
 			"push",
@@ -147,7 +147,7 @@ func TestRecorder2(t *testing.T) {
 	}
 	t.Log(id)
 
-	id, err = r.Create(ctx, Data{
+	id, err = r.Create(ctx, Input{
 		Url: "test3",
 		TriggerEventTypes: []string{
 			"push",

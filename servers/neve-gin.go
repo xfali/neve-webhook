@@ -82,7 +82,7 @@ func (o *webHookHandler) HttpRoutes(engine gin.IRouter) {
 }
 
 func (o *webHookHandler) create(ctx *gin.Context) {
-	d := recorder.Data{}
+	d := recorder.Input{}
 	err := ctx.Bind(&d)
 	if err != nil {
 		if o.respFunc(ctx, err) {
@@ -106,7 +106,7 @@ func (o *webHookHandler) update(ctx *gin.Context) {
 			return
 		}
 	}
-	d := recorder.Data{}
+	d := recorder.Input{}
 	err := ctx.Bind(&d)
 	if err != nil {
 		if o.respFunc(ctx, err) {
