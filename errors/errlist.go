@@ -61,13 +61,13 @@ func (l *LockedErrList) Add(e ...error) {
 }
 
 func (l *LockedErrList) Empty() bool {
-	l.locker.RLocker()
+	l.locker.RLock()
 	defer l.locker.RUnlock()
 	return len(l.errs) == 0
 }
 
 func (l *LockedErrList) Error() string {
-	l.locker.RLocker()
+	l.locker.RLock()
 	defer l.locker.RUnlock()
 	buf := strings.Builder{}
 	buf.WriteString("Have errors: ")

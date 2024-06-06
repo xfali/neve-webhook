@@ -1,0 +1,31 @@
+neve:
+  web:
+    log:
+      requestHeader: true
+      requestBody: true
+      responseHeader: true
+      responseBody: true
+      level: "warn"
+
+    server:
+      contextPath: ""
+      host: ""
+      port: 8082
+      tls:
+        cert:
+        key:
+      readTimeout: 15
+      writeTimeout: 15
+      idleTimeout: 15
+
+    hooks:
+      routes:
+        create: "http://localhost:8080/test0/webhooks"
+        update: "http://localhost:8080/test1/webhooks"
+        query: "http://localhost:8080/test2/webhooks"
+        detail: "http://localhost:8080/test3/webhooks"
+        delete: "http://localhost:8080/test4/webhooks"
+
+app:
+  hook:
+    events: "http://localhost:8082/events"

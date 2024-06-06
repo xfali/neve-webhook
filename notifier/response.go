@@ -15,19 +15,10 @@
  * limitations under the License.
  */
 
-package manager
+package notifier
 
-import (
-	"context"
-	"github.com/xfali/neve-webhook/events"
-	"github.com/xfali/neve-webhook/notifier"
-	"github.com/xfali/neve-webhook/serialize"
-)
-
-type Manager interface {
-	Start() error
-
-	Close() error
-
-	Notify(ctx context.Context, event events.IEvent, d serialize.Deserializer) (respChan <-chan *notifier.Response, err error)
+type Response struct {
+	Url     string
+	Payload interface{}
+	Error   error
 }

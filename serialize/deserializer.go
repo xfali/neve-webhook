@@ -20,3 +20,9 @@ package serialize
 type Deserializer interface {
 	Deserialize([]byte) (interface{}, error)
 }
+
+type DeserializeFunc func([]byte) (interface{}, error)
+
+func (f DeserializeFunc) Deserialize(data []byte) (interface{}, error) {
+	return f(data)
+}

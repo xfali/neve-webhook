@@ -110,7 +110,7 @@ func (m *defaultManager) loop() {
 	}
 }
 
-func (m *defaultManager) Notify(ctx context.Context, event events.IEvent, d serialize.Deserializer) (<-chan interface{}, error) {
+func (m *defaultManager) Notify(ctx context.Context, event events.IEvent, d serialize.Deserializer) (<-chan *notifier.Response, error) {
 	return nil, m.eventSvc.Put(ctx, event)
 }
 

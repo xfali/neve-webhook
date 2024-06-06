@@ -47,7 +47,7 @@ type blockManager struct {
 	notifyTimeout time.Duration
 }
 
-func NewSyncManager(recorder recorder.Recorder, opts ...BlockOpt) *blockManager {
+func NewBlockManager(recorder recorder.Recorder, opts ...BlockOpt) *blockManager {
 	ret := &blockManager{
 		logger:        xlog.GetLogger(),
 		recorder:      recorder,
@@ -80,9 +80,9 @@ func (m *blockManager) Close() error {
 	return nil
 }
 
-func (m *blockManager) Notify(ctx context.Context, event events.IEvent, ds serialize.Deserializer) (<-chan interface{}, error) {
+func (m *blockManager) Notify(ctx context.Context, event events.IEvent, ds serialize.Deserializer) (<-chan *notifier.Response, error) {
 	offset := int64(0)
-	respChan := make(chan interface{}, ResponseChanBufferSize)
+	respChan := make(chan *notifier.Response, ResponseChanBufferSize)
 	errList := &errors.LockedErrList{}
 	for {
 		datas, _, err := m.recorder.Query(ctx, recorder.QueryCondition{
@@ -101,14 +101,16 @@ func (m *blockManager) Notify(ctx context.Context, event events.IEvent, ds seria
 			go m.notify(ctx, d, event, ds, respChan, errList)
 		}
 	}
-
-	return respChan, nil
+	if errList.Empty() {
+		return respChan, nil
+	}
+	return respChan, errList
 }
 
-func (m *blockManager) notify(ctx context.Context, d recorder.Data, event events.IEvent, ds serialize.Deserializer, respChan chan interface{}, errs errors.ErrorList) {
-	var resp interface{}
+func (m *blockManager) notify(ctx context.Context, d recorder.Data, event events.IEvent, ds serialize.Deserializer, respChan chan *notifier.Response, errs errors.ErrorList) {
+	var resp *notifier.Response
 	holder := &resp
-	defer func(o *interface{}) {
+	defer func(o **notifier.Response) {
 		select {
 		case <-ctx.Done():
 			err := ctx.Err()
@@ -130,22 +132,32 @@ func (m *blockManager) notify(ctx context.Context, d recorder.Data, event events
 	if err != nil {
 		errs.Add(err)
 		m.logger.Errorln("Notifier send message failed: ", err)
+		*holder = &notifier.Response{
+			Url:     d.Url,
+			Payload: nil,
+			Error:   err,
+		}
 		err = m.recorder.UpdateNotifyStatus(ctx, d.ID, now, false)
 		if err != nil {
 			m.logger.Errorln("Recorder UpdateNotifyStatus failed: ", err)
 		}
 	} else {
-		err = m.recorder.UpdateNotifyStatus(ctx, d.ID, now, true)
-		if err != nil {
-			m.logger.Errorln("Recorder UpdateNotifyStatus failed: ", err)
+		errU := m.recorder.UpdateNotifyStatus(ctx, d.ID, now, true)
+		if errU != nil {
+			m.logger.Errorln("Recorder UpdateNotifyStatus failed: ", errU)
 		}
+		var payload interface{}
 		if ds != nil {
-			v, err := ds.Deserialize(data)
+			payload, err = ds.Deserialize(data)
 			if err != nil {
 				errs.Add(err)
 				m.logger.Errorln("Deserialize hook response failed: ", err)
 			}
-			holder = &v
+		}
+		*holder = &notifier.Response{
+			Url:     d.Url,
+			Payload: payload,
+			Error:   err,
 		}
 	}
 }
