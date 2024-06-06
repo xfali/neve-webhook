@@ -30,6 +30,7 @@ import (
 
 const (
 	ResponseChanBufferSize = 256
+	DefaultRetryCount      = 1
 )
 
 type BlockOpt func(m *blockManager)
@@ -45,6 +46,7 @@ type blockManager struct {
 
 	signFunc      SignatureFunc
 	notifyTimeout time.Duration
+	retryCount    int
 }
 
 func NewBlockManager(recorder recorder.Recorder, opts ...BlockOpt) *blockManager {
@@ -54,6 +56,7 @@ func NewBlockManager(recorder recorder.Recorder, opts ...BlockOpt) *blockManager
 		notifier:      notifier.NewHttpNotifier(nil),
 		signFunc:      defaultSignFunc,
 		notifyTimeout: NotifyTimeout,
+		retryCount:    DefaultRetryCount,
 	}
 	for _, opt := range opts {
 		opt(ret)
@@ -129,36 +132,40 @@ func (m *blockManager) notify(ctx context.Context, d recorder.Data, event events
 		return
 	}
 	nCtx, _ := context.WithTimeout(ctx, m.notifyTimeout)
-	data, err := m.notifier.Send(nCtx, d.Url, d.ContentType, secret, event)
-	if err != nil {
-		errs.Add(err)
-		m.logger.Errorln("Notifier send message failed: ", err)
-		*holder = &notifier.Response{
-			Url:     d.Url,
-			Payload: nil,
-			Error:   err,
-		}
-		err = m.recorder.UpdateNotifyStatus(ctx, d.ID, now, false)
+	for i := 0; i < m.retryCount; i++ {
+		data, err := m.notifier.Send(nCtx, d.Url, d.ContentType, secret, event)
 		if err != nil {
-			m.logger.Errorln("Recorder UpdateNotifyStatus failed: ", err)
-		}
-	} else {
-		errU := m.recorder.UpdateNotifyStatus(ctx, d.ID, now, true)
-		if errU != nil {
-			m.logger.Errorln("Recorder UpdateNotifyStatus failed: ", errU)
-		}
-		var payload interface{}
-		if ds != nil {
-			payload, err = ds.Deserialize(data)
-			if err != nil {
-				errs.Add(err)
-				m.logger.Errorln("Deserialize hook response failed: ", err)
+			errs.Add(err)
+			m.logger.Errorln("Notifier send message failed: ", err)
+			*holder = &notifier.Response{
+				Url:     d.Url,
+				Payload: nil,
+				Error:   err,
 			}
-		}
-		*holder = &notifier.Response{
-			Url:     d.Url,
-			Payload: payload,
-			Error:   err,
+			err = m.recorder.UpdateNotifyStatus(ctx, d.ID, now, false)
+			if err != nil {
+				m.logger.Errorln("Recorder UpdateNotifyStatus failed: ", err)
+			}
+			continue
+		} else {
+			errU := m.recorder.UpdateNotifyStatus(ctx, d.ID, now, true)
+			if errU != nil {
+				m.logger.Errorln("Recorder UpdateNotifyStatus failed: ", errU)
+			}
+			var payload interface{}
+			if ds != nil {
+				payload, err = ds.Deserialize(data)
+				if err != nil {
+					errs.Add(err)
+					m.logger.Errorln("Deserialize hook response failed: ", err)
+				}
+			}
+			*holder = &notifier.Response{
+				Url:     d.Url,
+				Payload: payload,
+				Error:   err,
+			}
+			break
 		}
 	}
 }
@@ -182,5 +189,11 @@ func (o blockOpts) SetSignatureFunc(f SignatureFunc) BlockOpt {
 func (o blockOpts) SetNotifyTimeout(t time.Duration) BlockOpt {
 	return func(m *blockManager) {
 		m.notifyTimeout = t
+	}
+}
+
+func (o blockOpts) SetRetryCount(n int) BlockOpt {
+	return func(m *blockManager) {
+		m.retryCount = n
 	}
 }

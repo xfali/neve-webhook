@@ -50,6 +50,7 @@ type defaultManager struct {
 
 	signFunc      SignatureFunc
 	notifyTimeout time.Duration
+	retryCount    int
 }
 
 func NewManager(recorder recorder.Recorder, opts ...Opt) *defaultManager {
@@ -60,6 +61,7 @@ func NewManager(recorder recorder.Recorder, opts ...Opt) *defaultManager {
 		notifier:      notifier.NewHttpNotifier(nil),
 		signFunc:      defaultSignFunc,
 		notifyTimeout: NotifyTimeout,
+		retryCount:    DefaultRetryCount,
 	}
 	for _, opt := range opts {
 		opt(ret)
@@ -140,18 +142,22 @@ func (m *defaultManager) doNotify(ctx context.Context, event events.IEvent) erro
 				continue
 			}
 			nCtx, _ := context.WithTimeout(ctx, m.notifyTimeout)
-			_, err = m.notifier.Send(nCtx, d.Url, d.ContentType, secret, event)
-			if err != nil {
-				errList.Add(err)
-				m.logger.Errorln("Notifier send message failed: ", err)
-				err = m.recorder.UpdateNotifyStatus(ctx, d.ID, now, false)
+			for i := 0; i < m.retryCount; i++ {
+				_, err = m.notifier.Send(nCtx, d.Url, d.ContentType, secret, event)
 				if err != nil {
-					m.logger.Errorln("Recorder UpdateNotifyStatus failed: ", err)
-				}
-			} else {
-				err = m.recorder.UpdateNotifyStatus(ctx, d.ID, now, true)
-				if err != nil {
-					m.logger.Errorln("Recorder UpdateNotifyStatus failed: ", err)
+					errList.Add(err)
+					m.logger.Errorln("Notifier send message failed: ", err)
+					err = m.recorder.UpdateNotifyStatus(ctx, d.ID, now, false)
+					if err != nil {
+						m.logger.Errorln("Recorder UpdateNotifyStatus failed: ", err)
+					}
+					continue
+				} else {
+					err = m.recorder.UpdateNotifyStatus(ctx, d.ID, now, true)
+					if err != nil {
+						m.logger.Errorln("Recorder UpdateNotifyStatus failed: ", err)
+					}
+					break
 				}
 			}
 		}
@@ -192,5 +198,11 @@ func (o opts) SetSignatureFunc(f SignatureFunc) Opt {
 func (o opts) SetNotifyTimeout(t time.Duration) Opt {
 	return func(m *defaultManager) {
 		m.notifyTimeout = t
+	}
+}
+
+func (o opts) SetRetryCount(n int) Opt {
+	return func(m *defaultManager) {
+		m.retryCount = n
 	}
 }
