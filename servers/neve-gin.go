@@ -37,6 +37,7 @@ type webHookHandler struct {
 
 	Service service.WebHookService `inject:""`
 
+	Group      string `fig:"neve.web.hooks.group"`
 	CreatePath string `fig:"neve.web.hooks.routes.create"`
 	UpdatePath string `fig:"neve.web.hooks.routes.update"`
 	QueryPath  string `fig:"neve.web.hooks.routes.query"`
@@ -68,6 +69,9 @@ func (o *webHookHandler) HttpRoutes(engine gin.IRouter) {
 	}
 	if o.DeletePath == "" {
 		o.DeletePath = "/webhooks/:id"
+	}
+	if o.Group != "" {
+		engine = engine.Group(o.Group)
 	}
 	engine.POST(o.CreatePath, o.HLog.LogHttp(), o.create)
 	engine.PUT(o.UpdatePath, o.HLog.LogHttp(), o.update)
@@ -178,5 +182,25 @@ func defaultResponse(ctx *gin.Context, o interface{}) bool {
 	} else {
 		ctx.JSON(http.StatusOK, result.Ok(o))
 		return false
+	}
+}
+
+func group(group, route string) string {
+	if len(route) == 0 {
+		return group
+	}
+	if len(group) == 0 {
+		return route
+	}
+	if group[0] != '/' {
+		group = "/" + group
+	}
+	if group[len(group)-1] == '/' {
+		group = group[:len(group)-1]
+	}
+	if route[0] == '/' {
+		return group + route
+	} else {
+		return group + "/" + route
 	}
 }
