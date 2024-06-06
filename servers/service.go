@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/xfali/neve-webhook/recorder"
+	"github.com/xfali/neve-webhook/service"
 	"github.com/xfali/xlog"
 )
 
@@ -43,9 +44,12 @@ func (s *webHookServiceImpl) Update(ctx context.Context, id string, rec recorder
 	return s.Recorder.Update(ctx, id, rec)
 }
 
-func (s *webHookServiceImpl) Get(ctx context.Context, cond recorder.QueryCondition) ([]recorder.Data, error) {
-	v, _, err := s.Recorder.Query(ctx, cond)
-	return v, err
+func (s *webHookServiceImpl) Get(ctx context.Context, cond recorder.QueryCondition) (service.ListData, error) {
+	v, total, err := s.Recorder.Query(ctx, cond)
+	return service.ListData{
+		Webhooks: v,
+		Total:    total,
+	}, err
 }
 
 func (s *webHookServiceImpl) Detail(ctx context.Context, id string) (recorder.Data, error) {

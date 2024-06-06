@@ -26,6 +26,7 @@ import (
 	"github.com/xfali/neve-webhook/service"
 	"github.com/xfali/xlog"
 	"net/http"
+	"strconv"
 )
 
 type ResponseFunc func(ctx *gin.Context, o interface{}) (abort bool)
@@ -125,9 +126,21 @@ func (o *webHookHandler) update(ctx *gin.Context) {
 func (o *webHookHandler) get(ctx *gin.Context) {
 	id := ctx.Query("id")
 	eventType := ctx.Query("event_type")
+	currentPageStr := ctx.Query("current_page")
+	pageSizeStr := ctx.Query("page_size")
+	var currentPage int64 = 0
+	var pageSize int64 = 32
+	if v, err := strconv.ParseInt(currentPageStr, 10, 64); err == nil {
+		currentPage = v
+	}
+	if v, err := strconv.ParseInt(pageSizeStr, 10, 64); err == nil {
+		pageSize = v
+	}
 	v, err := o.Service.Get(ctx, recorder.QueryCondition{
 		Id:        id,
 		EventType: eventType,
+		Offset:    currentPage,
+		PageSize:  pageSize,
 	})
 	if err != nil {
 		if o.respFunc(ctx, err) {

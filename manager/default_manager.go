@@ -31,6 +31,7 @@ import (
 
 const (
 	NotifyTimeout = 15 * time.Second
+	NotifySize    = 1024
 )
 
 type Opt func(m *defaultManager)
@@ -115,14 +116,13 @@ func (m *defaultManager) Notify(ctx context.Context, event events.IEvent, d seri
 
 func (m *defaultManager) doNotify(ctx context.Context, event events.IEvent) error {
 	offset := int64(0)
-	pageSize := int64(32)
 	var errList errors.ErrList
 	now := time.Now()
 	for {
 		datas, _, err := m.recorder.Query(ctx, recorder.QueryCondition{
 			EventType: event.GetType(),
 			Offset:    offset,
-			PageSize:  pageSize,
+			PageSize:  NotifySize,
 		})
 		if err != nil {
 			return err

@@ -17,19 +17,9 @@
 
 package service
 
-import (
-	"context"
-	"github.com/xfali/neve-webhook/recorder"
-)
+import "github.com/xfali/neve-webhook/recorder"
 
-type WebHookService interface {
-	Create(ctx context.Context, rec recorder.Data) (string, error)
-
-	Update(ctx context.Context, id string, rec recorder.Data) error
-
-	Get(ctx context.Context, cond recorder.QueryCondition) (ListData, error)
-
-	Detail(ctx context.Context, id string) (recorder.Data, error)
-
-	Delete(ctx context.Context, id string) error
+type ListData struct {
+	Webhooks []recorder.Data `json:"list" xml:"list" yaml:"list"`
+	Total    int64           `json:"total" xml:"total" yaml:"total"`
 }

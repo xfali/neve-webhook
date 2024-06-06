@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/xfali/neve-webhook/recorder"
+	"github.com/xfali/neve-webhook/service"
 	"github.com/xfali/restclient/v2"
 	"github.com/xfali/restclient/v2/request"
 )
@@ -70,12 +71,12 @@ func (s *webHooksClient) Update(ctx context.Context, id string, rec recorder.Dat
 	return err
 }
 
-func (s *webHooksClient) Get(ctx context.Context, cond recorder.QueryCondition) ([]recorder.Data, error) {
+func (s *webHooksClient) Get(ctx context.Context, cond recorder.QueryCondition) (service.ListData, error) {
 	url := s.endpoint
 	if s.QueryPath != "" {
 		url = s.QueryPath
 	}
-	ret := Result[[]recorder.Data]{}
+	ret := Result[service.ListData]{}
 	err := s.client.Exchange(fmt.Sprintf("%s?id=%s&event_type=%s", url, cond.Id, cond.EventType),
 		request.WithRequestContext(ctx),
 		request.MethodGet(),
